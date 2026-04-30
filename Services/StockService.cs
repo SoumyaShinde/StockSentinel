@@ -33,8 +33,7 @@ namespace StockSentinal.Services
             {
                 return null;
             }
-            var newStock = new StockResponse(stock.Symbol, stock.CompanyName, stock.LastPrice);
-            return newStock;
+            return new StockResponse(stock.Symbol, stock.CompanyName, stock.LastPrice);
         }
 
         public async Task<decimal> GetStockPrices(string symbol)

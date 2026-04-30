@@ -1,5 +1,16 @@
 using System.Text.Json.Serialization;
 
+// {
+//   "Global Quote": {
+//     "01. symbol": "AAPL",
+//     "02. open": "189.00",
+//     "03. high": "192.00",
+//     "04. low": "188.00",
+//     "05. price": "191.50",
+//     "06. volume": "52000000",
+//     "07. latest trading day": "2026-04-29"
+//   }
+// }
 namespace StockSentinal.DTOs
 {
     public class AlphaVantageResponse
