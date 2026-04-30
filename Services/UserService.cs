@@ -15,12 +15,7 @@ namespace StockSentinal.Services
 
         public async Task<List<UserResponse>> GetAllUsersAsync()
         {
-            var users = await _db.Users.ToListAsync();
-            
-            if (!users.Any())
-                return new List<UserResponse>();
-
-            return users.Select(u => new UserResponse(u.Id, u.Email, u.Role, u.CreatedAt)).ToList();
+            return await _db.Users.Select(u => new UserResponse(u.Id, u.Email, u.Role, u.CreatedAt)).ToListAsync();
         }
     }
 }
