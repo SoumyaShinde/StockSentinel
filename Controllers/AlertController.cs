@@ -32,5 +32,16 @@ namespace StockSentinal.Controllers
             var result = await _service.CreateAlert(request);
             return Ok(result);
         }
+
+        [HttpDelete]
+        public async Task<ActionResult<AlertResponse>> DeleteAlert([FromQuery] int id)
+        {
+            var result = await _service.DeleteAlert(id);
+            if (!result)
+            {
+                return new NotFoundResult();
+            }
+            return Ok("Alert Deleted Successfully!");
+        }
     }
 }

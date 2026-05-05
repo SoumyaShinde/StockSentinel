@@ -45,18 +45,26 @@ namespace StockSentinal.Services
                 TargetPrice = request.Price,
                 AlertType = request.Type,
                 CreatedAt = DateTime.UtcNow,
-                TriggeredAt = DateTime.UtcNow,
+                TriggeredAt = null,
                 IsTriggered = false,
             };
             _db.PriceAlerts.Add(pa);
             await _db.SaveChangesAsync();
 
-            return (new AlertResponse(pa.Id, pa.AlertType,pa.Stock.CompanyName,pa.TargetPrice,true,pa.Stock.Symbol,pa.TriggeredAt,pa.CreatedAt));
+            return (new AlertResponse(pa.Id, pa.AlertType,pa.Stock.CompanyName,pa.TargetPrice,pa.IsTriggered,pa.Stock.Symbol,pa.TriggeredAt,pa.CreatedAt));
         }
 
-        public Task<bool> DeleteAlert(int alertId)
+        public async Task<bool> DeleteAlert(int alertId)
         {
-            throw new NotImplementedException();
+            var alert = await _db.PriceAlerts.FirstOrDefaultAsync(a => a.Id == alertId);
+            if (alert != null)
+            {
+                _db.PriceAlerts.Remove(alert);
+                await _db.SaveChangesAsync();
+                return true;
+            }
+
+            return false;
         }
     }
 }
