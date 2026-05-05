@@ -25,5 +25,12 @@ namespace StockSentinal.Controllers
             }
             return Ok(result);            
         }
+
+        [HttpPost]
+        public async Task<ActionResult<AlertResponse>> CreateAlert([FromBody] AlertRequest request)
+        {
+            var result = await _service.CreateAlert(request);
+            return Ok(result);
+        }
     }
 }
