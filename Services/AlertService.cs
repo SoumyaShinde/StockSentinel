@@ -8,23 +8,21 @@ namespace StockSentinal.Services
     public class AlertService : IAlertService
     {
         private readonly AppDbContext _db;
-        public AlertService(AppDbContext db)
+        private readonly IStockService _price;
+        public AlertService(AppDbContext db, IStockService price)
         {
             _db = db;
+            _price = price;
         }
 
         public async Task<List<AlertResponse>> GetAlert(int userId)
         {
             return await _db.PriceAlerts
-                .Include(a => a.Stock) 
+                .Include(a => a.Stock)
                 .Where(a => a.UserId == userId)
-                .Select(s => new AlertResponse(s.Id, s.AlertType, s.Stock.CompanyName, 
-                s.TargetPrice, s.IsTriggered, s.Stock.Symbol, s.TriggeredAt, s.CreatedAt))
+                .Select(s => new AlertResponse(s.Id, s.AlertType, s.Stock.CompanyName,
+                    s.TargetPrice, s.IsTriggered, s.Stock.Symbol, s.TriggeredAt, s.CreatedAt))
                 .ToListAsync();
-        }
-        public Task CheckThreshold()
-        {
-            throw new NotImplementedException();
         }
 
         public async Task<AlertResponse> CreateAlert(AlertRequest request)
@@ -64,7 +62,49 @@ namespace StockSentinal.Services
                 return true;
             }
 
-            return false;
+            return false;   
+        }
+
+        public async Task CheckThreshold()
+        {
+            var untriggeredAlerts = await _db.PriceAlerts
+                .Include(s=>s.Stock)
+                .Where(a => !a.IsTriggered).ToListAsync();
+
+            foreach (var alert in untriggeredAlerts)
+            {
+                var currentPrice = await _price.GetStockPrices(alert.Stock.Symbol);
+                bool triggered = false;
+                if (alert.AlertType == "Above" && currentPrice > alert.TargetPrice)
+                {
+                    triggered = true;
+                }
+
+                if (alert.AlertType == "Below" && currentPrice < alert.TargetPrice)
+                {
+                    triggered = true;
+                }
+
+                if (triggered)
+                {
+                    alert.TriggeredAt = DateTime.Now;
+                    alert.IsTriggered = triggered;
+                    alert.Stock.LastPrice = currentPrice;
+
+                    var ah = new AlertHistory
+                    {
+                        UserId = alert.UserId,
+                        User = alert.User,
+                        Stock = alert.Stock,
+                        TriggeredAt = DateTime.Now,
+                        Message = $"{alert.Stock.Symbol} hit your {alert.AlertType} target of {alert.TargetPrice}!",
+
+                    };
+
+                    _db.Add(ah);
+                    await _db.SaveChangesAsync();
+                }
+            }
         }
     }
 }

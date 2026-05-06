@@ -38,31 +38,45 @@ namespace StockSentinal.Services
 
         public async Task<decimal> GetStockPrices(string symbol)
         {
-            // var value = await _db.Stocks
-            //     .Where(s => s.Symbol == symbol)
-            //     .Select(s => s.LastPrice).FirstOrDefaultAsync();
-            // return value;
+            decimal price;
+
+            // Check cache first
             if (_cache.TryGetValue(symbol, out decimal cachedPrice))
             {
-                return cachedPrice;
+                price = cachedPrice;
             }
-            var client = _httpClientFactory.CreateClient();
-            var apiKey = _config["AlphaVantage:ApiKey"];
-            var baseUrl = _config["AlphaVantage:BaseUrl"];  
-            var url = $"{baseUrl}?function=GLOBAL_QUOTE&symbol={symbol}&apikey={apiKey}";
+            else
+            {
+                // Call Alpha Vantage
+                var client = _httpClientFactory.CreateClient();
+                var apiKey = _config["AlphaVantage:ApiKey"];
+                var baseUrl = _config["AlphaVantage:BaseUrl"];
+                var url = $"{baseUrl}?function=GLOBAL_QUOTE&symbol={symbol}&apikey={apiKey}";
 
-            var response = await client.GetAsync(url);
-            var json = await response.Content.ReadAsStringAsync();
+                var response = await client.GetAsync(url);
+                var json = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Alpha Vantage response: {json}");
 
-            var data = JsonSerializer.Deserialize<AlphaVantageResponse>(json);
-            var price = decimal.Parse(data!.GlobalQuote!.Price);
+                var data = JsonSerializer.Deserialize<AlphaVantageResponse>(json);
 
-            _cache.Set(symbol, price, TimeSpan.FromSeconds(30));
+                // Handle rate limit!
+                if (data?.GlobalQuote == null || string.IsNullOrEmpty(data.GlobalQuote.Price))
+                {
+                    var dbStock = await _db.Stocks
+                        .FirstOrDefaultAsync(s => s.Symbol == symbol);
+                    return dbStock?.LastPrice ?? 0m;
+                }
 
-            var stock = await _db.Stocks.FirstOrDefaultAsync(s => s.Symbol == symbol);
+                price = decimal.Parse(data.GlobalQuote.Price);
+                _cache.Set(symbol, price, TimeSpan.FromSeconds(30));
+            }
+
+            // Always update DB with latest price!
+            var stock = await _db.Stocks
+                .FirstOrDefaultAsync(s => s.Symbol == symbol);
             if (stock != null)
             {
-                stock.LastPrice = price;     
+                stock.LastPrice = price;
                 stock.UpdatedAt = DateTime.UtcNow;
                 await _db.SaveChangesAsync();
             }

@@ -4,6 +4,8 @@ using StockSentinal.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Hangfire;
+using StockSentinal.Jobs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,6 +48,11 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
 builder.Services.AddMemoryCache();
 
+// Add Hangfire
+builder.Services.AddHangfire(config => config.UseInMemoryStorage());
+builder.Services.AddHangfireServer();
+builder.Services.AddScoped<StockPricePollingJob>();
+
 var app = builder.Build();
 
 // Configure pipeline
@@ -59,5 +66,15 @@ app.UseSwaggerUI(c =>
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Use Hangfire dashboard
+app.UseHangfireDashboard();
+
+// Schedule recurring job — every 1 minute
+RecurringJob.AddOrUpdate<StockPricePollingJob>(
+    "stock-price-polling",
+    job => job.Execute(),
+    "*/5 * * * *"  // cron = every 5 minute
+);
 
 app.Run();
